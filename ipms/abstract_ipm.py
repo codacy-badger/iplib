@@ -26,11 +26,9 @@ class AbstractIPM(metaclass=ABCMeta):
         pass
 
     @staticmethod
+    @abstractmethod
     def _newton_step(jac, rhs):
-        if np.linalg.matrix_rank(jac) == jac.shape[0]:
-            return np.linalg.solve(jac, rhs)
-        else:
-            raise ValueError("Jacobian of Newton system is rank-deficient.")
+        pass
 
     @staticmethod
     @abstractmethod

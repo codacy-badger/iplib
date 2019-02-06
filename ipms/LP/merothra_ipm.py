@@ -27,6 +27,13 @@ class MehrotraIPM(AbstractIPM):
         return alpha
 
     @staticmethod
+    def _newton_step(jac, rhs):
+        if np.linalg.matrix_rank(jac) == jac.shape[0]:
+            return np.linalg.solve(jac, rhs)
+        else:
+            raise ValueError("Jacobian of Newton system is rank-deficient.")
+
+    @staticmethod
     def solve(A, b, c, tol=1e-8,  max_iter=np.inf, logs=False):
         """ Mehrotra IP method for solving LP problems of the form
                 min  c'*x
