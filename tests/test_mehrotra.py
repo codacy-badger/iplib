@@ -32,8 +32,8 @@ class TestMehrotra(unittest.TestCase):
 
         self.assertRaises(ValueError, MehrotraIPM.solve, A, b, c, tol)
 
-    def test_20_random_problems(self):
-        for _ in range(20):
+    def test_10_random_problems_with_slack_variables(self):
+        for _ in range(10):
             A = np.random.rand(np.random.randint(3, 25), np.random.randint(3, 25))*10
             I = np.eye(A.shape[0])
             A = np.c_[A, I]
@@ -44,3 +44,17 @@ class TestMehrotra(unittest.TestCase):
             [x, y, s] = MehrotraIPM.solve(A, b, c, tol)
             res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
             self.assertTrue(np.allclose(x, res.x))
+
+    def test_20_random_rank_deficient_problems(self):
+        for _ in range(20):
+            A = np.random.rand(np.random.randint(3, 25), np.random.randint(3, 25))*10
+            cnt_rows = A.shape[0]
+            b = np.random.rand(cnt_rows, 1) * 10
+
+            A = np.r_[A, A[0:int(cnt_rows * 0.4), :]]
+            b = np.r_[b, b[0:int(cnt_rows * 0.4), :]]
+
+            c = - np.random.rand(A.shape[1], 1)
+            tol = 1e-7
+
+            self.assertRaises(ValueError, MehrotraIPM.solve, A, b, c, tol)
