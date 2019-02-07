@@ -7,8 +7,8 @@ from ipms.abstract_ipm import AbstractIPM
 class MehrotraIPM(AbstractIPM):
     """ Mehrotra implementation of IP method. """
 
-    @staticmethod
-    def _build_jacobian(A, x, s):
+    @classmethod
+    def _build_jacobian(cls, A, x, s):
         [m, n] = A.shape
         return np.r_[
             np.c_[zeros((n, n)), A.T, eye(n)],
@@ -16,8 +16,14 @@ class MehrotraIPM(AbstractIPM):
             np.c_[diag(s.T[0]), zeros((n, m)), diag(x.T[0])]
         ]
 
-    @staticmethod
-    def _get_step_length(d, var):
+    @classmethod
+    def _compute_residuals(cls, A, b, c, x, y, s):
+        rb = A @ x - b
+        rc = A.T @ y + s - c
+        return rb, rc
+
+    @classmethod
+    def _get_step_length(cls, d, var):
         alpha = MehrotraIPM.UNIT_STEP_LENGTH
         ax_index = np.where(d < 0)
         if ax_index[0].size != 0:
@@ -26,15 +32,19 @@ class MehrotraIPM(AbstractIPM):
             alpha = min(1, min(-xi / d_xi))
         return alpha
 
-    @staticmethod
-    def _newton_step(jac, rhs):
+    @classmethod
+    def _newton_step(cls, jac, rhs):
         if np.linalg.matrix_rank(jac) == jac.shape[0]:
             return np.linalg.solve(jac, rhs)
         else:
             raise ValueError("Jacobian of Newton system is rank-deficient.")
 
-    @staticmethod
-    def solve(A, b, c, tol=1e-8,  max_iter=np.inf, logs=False):
+    @classmethod
+    def _clear_globals(cls):
+        pass
+
+    @classmethod
+    def solve(cls, A, b, c, tol=1e-8,  max_iter=np.inf, logs=False):
         """ Mehrotra IP method for solving LP problems of the form
                 min  c'*x
                 s.t. A*x = b
@@ -55,7 +65,7 @@ class MehrotraIPM(AbstractIPM):
             """
 
         if logs:
-            MehrotraIPM.logger.addHandler(get_stdout_handler())
+            cls.logger.addHandler(get_stdout_handler())
 
         [m, n] = A.shape
 
@@ -67,16 +77,15 @@ class MehrotraIPM(AbstractIPM):
         # start value of perturbation parameter 'mu'
         mu = 1
 
-        MehrotraIPM.logger.info('  k | mu      | rb      | rc      | alpha_p | alpha_d')
-        MehrotraIPM.logger.info(' ----------------------------------------------------')
+        cls.logger.info('  k | mu      | rb      | rc      | alpha_p | alpha_d')
+        cls.logger.info(' ----------------------------------------------------')
 
         k = 0
         while True:
             if k > max_iter:
                 break
 
-            rb = A @ x - b
-            rc = A.T @ y + s - c
+            rb, rc = cls._compute_residuals(A, b, c, x, y, s)
 
             nrb = np.linalg.norm(rb, ord=np.inf)
             nrc = np.linalg.norm(rc, ord=np.inf)
@@ -86,14 +95,14 @@ class MehrotraIPM(AbstractIPM):
                 break
 
             # predictor part
-            jac = MehrotraIPM._build_jacobian(A, x, s)
+            jac = cls._build_jacobian(A, x, s)
             rhs = - np.concatenate([rc, rb, x * s])
-            d = MehrotraIPM._newton_step(jac, rhs)
+            d = cls._newton_step(jac, rhs)
 
             d_x = d[0:n]
             d_s = d[n + m:]
-            alpha_p = MehrotraIPM._get_step_length(d_x, x)
-            alpha_d = MehrotraIPM._get_step_length(d_s, s)
+            alpha_p = cls._get_step_length(d_x, x)
+            alpha_d = cls._get_step_length(d_s, s)
 
             # corrector part
             mu = x.T @ s / n
@@ -101,12 +110,12 @@ class MehrotraIPM(AbstractIPM):
             sigma = np.power((mu_alpha / mu), 3)
 
             rhs = -np.concatenate([rc, rb, x * s + d_x * d_s - sigma * mu])
-            d = MehrotraIPM._newton_step(jac, rhs)
+            d = cls._newton_step(jac, rhs)
 
             d_x = d[0:n]
             d_s = d[n + m:]
-            alpha_p = MehrotraIPM._get_step_length(d_x, x)
-            alpha_d = MehrotraIPM._get_step_length(d_s, s)
+            alpha_p = cls._get_step_length(d_x, x)
+            alpha_d = cls._get_step_length(d_s, s)
 
             dx = d[0:n]
             dy = d[n:n + m]
@@ -119,8 +128,9 @@ class MehrotraIPM(AbstractIPM):
 
             k += 1
             mu = mu[0][0]
-            MehrotraIPM.logger.info("{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(
+            cls.logger.info("{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(
                 k, mu, nrb, nrc, alpha_p, alpha_d))
 
-        MehrotraIPM.logger.info('\n')
+        cls.logger.info('\n')
+        cls._clear_globals()
         return x.ravel(), y.ravel(), s.ravel()
