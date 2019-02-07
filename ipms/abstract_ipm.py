@@ -1,4 +1,3 @@
-import numpy as np
 from abc import ABCMeta, abstractmethod
 from ipms.logger import get_logger
 
@@ -9,15 +8,15 @@ class AbstractIPM(metaclass=ABCMeta):
     UNIT_STEP_LENGTH = 1.0
     logger = get_logger()
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def _build_jacobian(*args, **kwargs):
+    def _build_jacobian(cls, *args, **kwargs):
         """ Builds Jacobian for Newton step"""
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def _get_step_length(*args, **kwargs):
+    def _get_step_length(cls, *args, **kwargs):
         """ Computes optimal step length
 
         Optimality with respect to the fact that the
@@ -25,12 +24,12 @@ class AbstractIPM(metaclass=ABCMeta):
         central path"""
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def _newton_step(jac, rhs):
+    def _newton_step(cls, jac, rhs):
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def solve(*args, **kwargs):
+    def solve(cls, *args, **kwargs):
         pass
