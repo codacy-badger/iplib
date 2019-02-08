@@ -1,14 +1,103 @@
 import numpy as np
 from numpy import zeros, ones, eye, diag
-from ipms.logger import get_stdout_handler
-from ipms.abstract_ipm import AbstractIPM
+
+from ipms.interface_ipm import Array, Vector, List
+from ipms.LP import interface_mehrotra_imp
 
 
-class MehrotraIPM(AbstractIPM):
+class MehrotraIPM(interface_mehrotra_imp.InterfaceMehrotraIPM):
     """ Mehrotra implementation of IP method. """
 
     @classmethod
-    def _build_jacobian(cls, A, x, s):
+    def _variables_initialization(cls, constraints: List[Array]) -> List[Vector]:
+        [m, n] = constraints[0].shape
+
+        # start point of primal-dual variables
+        x = ones((n, 1))
+        s = ones((n, 1))
+        y = zeros((m, 1))
+        return [x, s, y]
+
+    @classmethod
+    def _constants_initialization(cls, constraints):
+        A = constraints[0]
+        [cls.m, cls.n] = A.shape
+
+    @classmethod
+    def _predictor_step(cls, constraints, variables, residuals, jacobian):
+        # input parsing
+        [rc, rb] = residuals
+        [x, s, _] = variables
+
+        # step performing
+        rhs = - np.concatenate([rc, rb, x * s])
+
+        d = cls._newton_step(jacobian, rhs)
+        d_x = d[0:cls.n]
+        d_s = d[cls.n + cls.m:]
+        alpha_p = cls._get_step_length(d_x, x)
+        alpha_d = cls._get_step_length(d_s, s)
+
+        # metadata creating
+        metadata = {
+            "step": [alpha_p, alpha_d],
+            "d": [d_x, d_s]
+        }
+        return metadata
+
+    @classmethod
+    def _corrector_step(cls, predictor_metadata, constraints, variables, residuals, jacobian):
+        # input parsing
+        [alpha_p, alpha_d] = predictor_metadata['step']
+        [d_x, d_s] = predictor_metadata['d']
+        [x, s, _] = variables
+        [rc, rb] = residuals
+
+        # step performing
+        cls.mu = x.T @ s / cls.n
+        mu_alpha = ((x + alpha_p * d_x).T @ (s + alpha_d * d_s)) / cls.n
+        sigma = np.power((mu_alpha / cls.mu), 3)
+
+        rhs = -np.concatenate([rc, rb, x * s + d_x * d_s - sigma * cls.mu])
+
+        d = cls._newton_step(jacobian, rhs)
+        d_x = d[0:cls.n]
+        d_s = d[cls.n + cls.m:]
+        alpha_p = cls._get_step_length(d_x, x)
+        alpha_d = cls._get_step_length(d_s, s)
+
+        return d, [alpha_p, alpha_d]
+
+    @classmethod
+    def _update_variables(cls, variables, direction, step_length):
+        [x, s, y] = variables
+        d = direction
+        [alpha_p, alpha_d] = step_length
+
+        dx = d[0:cls.n]
+        dy = d[cls.n:cls.n + cls.m]
+        ds = d[cls.n + cls.m:]
+
+        # new iterate
+        x = x + alpha_p * dx
+        y = y + alpha_d * dy
+        s = s + alpha_d * ds
+        return [x, s, y]
+
+    @classmethod
+    def _log_iterations(cls, *args, **kwargs):
+        if len(args) == 0:
+            cls.logger.info('  k | mu      | rc      | rb      | alpha_p | alpha_d')
+            cls.logger.info(' ----------------------------------------------------')
+        else:
+            args = [cls.iter_num, cls.mu[0][0]] + list(np.ravel(args))
+            cls.logger.info("{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(*args))
+            # k, mu, nrb, nrc, alpha_p, alpha_d
+
+    @classmethod
+    def _build_jacobian(cls, cost_function, constraints, variables):
+        A = constraints[0]
+        [x, s, _] = variables
         [m, n] = A.shape
         return np.r_[
             np.c_[zeros((n, n)), A.T, eye(n)],
@@ -17,10 +106,14 @@ class MehrotraIPM(AbstractIPM):
         ]
 
     @classmethod
-    def _compute_residuals(cls, A, b, c, x, y, s):
-        rb = A @ x - b
+    def _compute_residuals(cls, cost_function, constraints, variables):
+        c = cost_function[0]
+        [A, b] = constraints
+        [x, s, y] = variables
+
         rc = A.T @ y + s - c
-        return rb, rc
+        rb = A @ x - b
+        return [rc, rb]
 
     @classmethod
     def _get_step_length(cls, d, var):
@@ -31,106 +124,3 @@ class MehrotraIPM(AbstractIPM):
             d_xi = d[ax_index]
             alpha = min(1, min(-xi / d_xi))
         return alpha
-
-    @classmethod
-    def _newton_step(cls, jac, rhs):
-        if np.linalg.matrix_rank(jac) == jac.shape[0]:
-            return np.linalg.solve(jac, rhs)
-        else:
-            raise ValueError("Jacobian of Newton system is rank-deficient.")
-
-    @classmethod
-    def _clear_globals(cls):
-        pass
-
-    @classmethod
-    def solve(cls, A, b, c, tol=1e-8,  max_iter=np.inf, logs=False):
-        """ Mehrotra IP method for solving LP problems of the form
-                min  c'*x
-                s.t. A*x = b
-                     x >= 0
-
-            Args:
-                A: numpy.array, matrix of constraints.
-                b: numpy.array, vector of constraints.
-                c: numpy.array, vector of coefficients in linear cost function.
-                tol: float, tolerance for termination.
-                max_iter: integer, maximum number of iterations. No limit by default.
-                logs: boolean, flag for logs
-
-            Returns:
-                x: numpy.array, vector of primal variables.
-                y: numpy.array, vector of dual variables for equality constraints.
-                s: numpy.array, vector of dual variables for inequality constrains.
-            """
-
-        if logs:
-            cls.logger.addHandler(get_stdout_handler())
-
-        [m, n] = A.shape
-
-        # start point of primal-dual variables
-        x = ones((n, 1))
-        s = ones((n, 1))
-        y = zeros((m, 1))
-
-        # start value of perturbation parameter 'mu'
-        mu = 1
-
-        cls.logger.info('  k | mu      | rb      | rc      | alpha_p | alpha_d')
-        cls.logger.info(' ----------------------------------------------------')
-
-        k = 0
-        while True:
-            if k > max_iter:
-                break
-
-            rb, rc = cls._compute_residuals(A, b, c, x, y, s)
-
-            nrb = np.linalg.norm(rb, ord=np.inf)
-            nrc = np.linalg.norm(rc, ord=np.inf)
-
-            # stopping condition
-            if np.max([nrb, nrc, mu]) < tol:
-                break
-
-            # predictor part
-            jac = cls._build_jacobian(A, x, s)
-            rhs = - np.concatenate([rc, rb, x * s])
-            d = cls._newton_step(jac, rhs)
-
-            d_x = d[0:n]
-            d_s = d[n + m:]
-            alpha_p = cls._get_step_length(d_x, x)
-            alpha_d = cls._get_step_length(d_s, s)
-
-            # corrector part
-            mu = x.T @ s / n
-            mu_alpha = ((x + alpha_p * d_x).T @ (s + alpha_d * d_s)) / n
-            sigma = np.power((mu_alpha / mu), 3)
-
-            rhs = -np.concatenate([rc, rb, x * s + d_x * d_s - sigma * mu])
-            d = cls._newton_step(jac, rhs)
-
-            d_x = d[0:n]
-            d_s = d[n + m:]
-            alpha_p = cls._get_step_length(d_x, x)
-            alpha_d = cls._get_step_length(d_s, s)
-
-            dx = d[0:n]
-            dy = d[n:n + m]
-            ds = d[n + m:]
-
-            # new iterate
-            x = x + alpha_p * dx
-            y = y + alpha_d * dy
-            s = s + alpha_d * ds
-
-            k += 1
-            mu = mu[0][0]
-            cls.logger.info("{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(
-                k, mu, nrb, nrc, alpha_p, alpha_d))
-
-        cls.logger.info('\n')
-        cls._clear_globals()
-        return x.ravel(), y.ravel(), s.ravel()
