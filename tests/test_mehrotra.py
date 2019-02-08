@@ -15,7 +15,7 @@ class TestMehrotra(unittest.TestCase):
         c = - np.array([[3], [13], [13], [0], [0], [0]], dtype=np.float64)
         tol = 1e-7
 
-        [x, y, s] = MehrotraIPM.solve(A, b, c, tol)
+        [x, s, y] = MehrotraIPM.solve([c], [A, b], tol)
         res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
         self.assertTrue(np.allclose(x, res.x))
 
@@ -30,7 +30,7 @@ class TestMehrotra(unittest.TestCase):
         c = - np.array([[3], [13], [13], [-5], [9], [0], [0], [0]], dtype=np.float64)
         tol = 1e-7
 
-        self.assertRaises(ValueError, MehrotraIPM.solve, A, b, c, tol)
+        self.assertRaises(ValueError, MehrotraIPM.solve, [c], [A, b], tol)
 
     def test_10_random_problems_with_slack_variables(self):
         for _ in range(10):
@@ -41,7 +41,7 @@ class TestMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            [x, y, s] = MehrotraIPM.solve(A, b, c, tol)
+            [x, y, s] = MehrotraIPM.solve([c], [A, b], tol)
             res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
             self.assertTrue(np.allclose(x, res.x))
 
@@ -57,4 +57,4 @@ class TestMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            self.assertRaises(ValueError, MehrotraIPM.solve, A, b, c, tol)
+            self.assertRaises(ValueError, MehrotraIPM.solve, [c], [A, b], tol)
