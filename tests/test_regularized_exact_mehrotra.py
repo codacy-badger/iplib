@@ -15,9 +15,9 @@ class TestExactRegularizedMehrotra(unittest.TestCase):
         c = - np.array([[3], [13], [13], [0], [0], [0]], dtype=np.float64)
         tol = 1e-7
 
-        [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol)
+        [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol, logs=False)
         res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-        self.assertTrue(np.allclose(x, res.x))
+        self.assertTrue(np.allclose(x, res.x, rtol=1.e-3, atol=1.e-3))
 
     def test_rank_deficient(self):
         A = np.array([[1, -1, 0, 5, 3],
@@ -32,7 +32,7 @@ class TestExactRegularizedMehrotra(unittest.TestCase):
 
         self.assertRaises(ValueError, RegularizedExactMehrotraIPM.solve, A, b, c, tol)
 
-    def test_20_random_problems_with_slack_variables(self):
+    def test_random_problems_with_slack_variables(self):
         for _ in range(20):
             A = np.random.rand(np.random.randint(3, 25), np.random.randint(3, 25))*10
             I = np.eye(A.shape[0])
@@ -41,34 +41,59 @@ class TestExactRegularizedMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol)
+            [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol, logs=False)
             res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-            self.assertTrue(np.allclose(x, res.x))
+            self.assertTrue(np.allclose(x, res.x, rtol=1.e-3, atol=1.e-3))
 
-    def test_20_random_problems_without_slack_variables_and_down_rectangular_matrix(self):
-        for _ in range(20):
+    def test_random_problems_without_slack_variables_and_down_rectangular_matrix(self):
+        cntr_ok = 0
+        cntr_fail = 0
+        cnt_experiments = 100
+        for _ in range(cnt_experiments):
             cnt_rows = np.random.randint(5, 25)
             A = np.random.rand(cnt_rows, np.random.randint(2, cnt_rows - 1))*10
             b = np.random.rand(A.shape[0], 1)*10
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            self.assertRaises(ValueError, RegularizedExactMehrotraIPM.solve, A, b, c, tol, np.inf, False)
+            try:
+                [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol, logs=False)
+                res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+                if (x @ c)[0] < (res.x @ c)[0] or np.allclose(x, res.x, rtol=1.e-2, atol=1.e-2):
+                    cntr_ok += 1
+            except ValueError:
+                cntr_fail += 1
+        print("{} - Percentage when IP is better then LINPROG: {:.2f}, Percentage of fails: {:.2f}%".format(
+            self.test_random_problems_without_slack_variables_and_down_rectangular_matrix.__name__,
+            cntr_ok / cnt_experiments * 100, cntr_fail / cnt_experiments * 100))
 
-    # def test_20_random_problems_without_slack_variables_and_right_rectangular_matrix(self):
-    #     for _ in range(20):
-    #         cnt_rows = np.random.randint(5, 25)
-    #         A = np.random.rand(cnt_rows, np.random.randint(cnt_rows, 26))*10
-    #         b = np.random.rand(A.shape[0], 1)*10
-    #         c = - np.random.rand(A.shape[1], 1)
-    #         tol = 1e-7
-    #
-    #         [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol, logs=True)
-    #         res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-    #         self.assertTrue(np.allclose(x, res.x))
+    def test_random_problems_without_slack_variables_and_right_rectangular_matrix(self):
+        cntr_ok = 0
+        cntr_fail = 0
+        cnt_experiments = 100
+        for _ in range(cnt_experiments):
+            cnt_rows = np.random.randint(5, 25)
+            A = np.random.rand(cnt_rows, np.random.randint(cnt_rows, 26))*10
+            b = np.random.rand(A.shape[0], 1)*10
+            c = - np.random.rand(A.shape[1], 1)
+            tol = 1e-7
 
-    def test_20_random_rank_deficient_problems(self):
-        for _ in range(20):
+            try:
+                [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol, logs=False)
+                res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+                if (x @ c)[0] <= (res.x @ c)[0] and np.linalg.norm(A@x-b, np.inf) < np.linalg.norm(A@res.x-b, np.inf):
+                    cntr_ok += 1
+            except ValueError:
+                cntr_fail += 1
+        print("{} - Percentage when IP is better then LINPROG: {:.2f}, Percentage of fails: {:.2f}%".format(
+            self.test_random_problems_without_slack_variables_and_right_rectangular_matrix.__name__,
+            cntr_ok / cnt_experiments * 100, cntr_fail / cnt_experiments * 100))
+
+    def test_random_rank_deficient_problems(self):
+        cntr_ok = 0
+        cntr_fail = 0
+        cnt_experiments = 100
+        for _ in range(cnt_experiments):
             A = np.random.rand(np.random.randint(3, 25), np.random.randint(3, 25))*10
             cnt_rows = A.shape[0]
             b = np.random.rand(cnt_rows, 1) * 10
@@ -79,4 +104,13 @@ class TestExactRegularizedMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            self.assertRaises(ValueError, RegularizedExactMehrotraIPM.solve, A, b, c, tol)
+            try:
+                [x, y, s] = RegularizedExactMehrotraIPM.solve(A, b, c, tol, logs=False)
+                res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+                if (x @ c)[0] <= (res.x @ c)[0] and np.linalg.norm(A@x-b, np.inf) < np.linalg.norm(A@res.x-b, np.inf):
+                    cntr_ok += 1
+            except ValueError:
+                cntr_fail += 1
+        print("{} - Percentage when IP is better then LINPROG: {:.2f}, Percentage of fails: {:.2f}%".format(
+            self.test_random_rank_deficient_problems.__name__,
+            cntr_ok / cnt_experiments * 100, cntr_fail / cnt_experiments * 100))
