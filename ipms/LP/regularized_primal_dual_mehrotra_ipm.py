@@ -53,7 +53,6 @@ class RegularizedPrimalDualMehrotraIPM(merothra_ipm.MehrotraIPM):
             cls.logger.info(
                 "{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(
                     *args))
-            # k, mu, nrc, nrb, nryk, nrxk, ntrc, ntrb, alpha_p, alpha_d
 
     @classmethod
     def _set_prevs(cls, x, y):
@@ -78,10 +77,10 @@ class RegularizedPrimalDualMehrotraIPM(merothra_ipm.MehrotraIPM):
         rb = A @ x + cls.DELTA * r - b
         trc = c - A.T @ y - z
         trb = A @ x - b
-        ryk = cls.DELTA * r - cls.DELTA * y
-        rxk = cls.RO * s + cls.RO * x
-        cls.x_prev = x
-        cls.y_prev = y
+        ryk = cls.DELTA * (r + cls.y_prev) - cls.DELTA * y
+        rxk = cls.RO * s + cls.RO * (x - cls.x_prev)
+        #cls.x_prev = x
+        #cls.y_prev = y
         return rc, rb, ryk, rxk, trc, trb
 
     @classmethod
@@ -150,106 +149,7 @@ class RegularizedPrimalDualMehrotraIPM(merothra_ipm.MehrotraIPM):
         return [x, z, y, r, s]
 
     @classmethod
-    def solve(cls, cost_function, constraints, tol=1e-8, max_iter=np.inf, logs=False):
-        """ Mehrotra IP method for solving LP problems of the form
-                min  c'*x
-                s.t. A*x = b
-                     x >= 0
-
-            Args:
-                A: numpy.array, matrix of constraints.
-                b: numpy.array, vector of constraints.
-                c: numpy.array, vector of coefficients in linear cost function.
-                tol: float, tolerance for termination.
-                max_iter: integer, maximum number of iterations. No limit by default.
-                logs: boolean, flag for logs
-
-            Returns:
-                x: numpy.array, vector of primal variables.
-                y: numpy.array, vector of dual variables for equality constraints.
-                s: numpy.array, vector of dual variables for inequality constrains.
-            """
-
-        if logs:
-            cls.logger.addHandler(get_stdout_handler())
-        [A, b] = constraints
-        c = cost_function[0]
-
-        [m, n] = A.shape
-
-        # start point of primal-dual variables
-        x = ones((n, 1))
-        z = ones((n, 1))
-        y = zeros((m, 1))
-        r = zeros((m, 1))
-        s = ones((n, 1))
-
-        # start value of perturbation parameter 'mu'
-        mu = 1
-
-        cls.logger.info('  k | mu      | rc      | rb      | trc     | trb     | ryk     | rxk     | alpha_p | alpha_d')
-        cls.logger.info(' --------------------------------------------------------------------------------------------')
-
-        k = 0
-        while True:
-            if k > max_iter:
-                break
-
-            rc, rb, ryk, rxk, trc, trb = cls._compute_residuals([c], [A, b], [x, z, y, r, s])
-
-            nrb = np.linalg.norm(rb, ord=np.inf)
-            nrc = np.linalg.norm(rc, ord=np.inf)
-            ntrb = np.linalg.norm(trb, ord=np.inf)
-            ntrc = np.linalg.norm(trc, ord=np.inf)
-            nryk = np.linalg.norm(ryk, ord=np.inf)
-            nrxk = np.linalg.norm(rxk, ord=np.inf)
-
-            # stopping condition
-            if np.max([nrb, nrc, mu, nryk, nrxk]) < tol:
-                break
-
-            jac = cls._build_jacobian([c], [A, b], [x, z, y, r, s])
-            # predictor part
-            rhs = - np.concatenate([rc, rb, ryk, rxk, x * z])
-            d = cls._newton_step(jac, rhs)
-
-            d_x = d[0:n]
-            d_z = d[n + m:2*n + m]
-            alpha_p = cls._get_step_length(d_x, x)
-            alpha_d = cls._get_step_length(d_z, z)
-
-            # corrector part
-            mu = x.T @ z / n
-            mu_alpha = ((x + alpha_p * d_x).T @ (z + alpha_d * d_z)) / n
-            sigma = np.power((mu_alpha / mu), 3)
-
-            rhs = -np.concatenate([rc, rb, ryk, rxk, x * z + d_x * d_z - sigma * mu])
-            d = cls._newton_step(jac, rhs)
-
-            d_x = d[0:n]
-            d_z = d[n + m:2*n + m]
-            alpha_p = cls._get_step_length(d_x, x)
-            alpha_d = cls._get_step_length(d_z, z)
-
-            dx = d[0:n]
-            dy = d[n:n + m]
-            dz = d[n + m:2*n + m]
-            dr = d[2*n + m:2*n + 2*m]
-            ds = d[2*n + 2*m:]
-
-            # new iterate
-            x = x + alpha_p * dx
-            y = y + alpha_d * dy
-            z = z + alpha_d * dz
-            r = r + alpha_d * dr
-            s = s + alpha_d * ds
-
-
-            k += 1
-            mu = mu[0][0]
-            cls.logger.info("{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(
-                k, mu, nrc, nrb, ntrc, ntrb, nryk, nrxk, alpha_p, alpha_d))
-
-        cls.logger.info('\n')
-        cls._clear_globals()
-        return x.ravel(), z.ravel(), y.ravel(), r.ravel(), s.ravel()
+    def _check_exit_conditions(cls, residuals_norm: Vector, tol: float, iter_num: int, max_iter: int) -> bool:
+        if np.max(residuals_norm[:-2]) < tol and cls.mu < tol or iter_num > max_iter:
+            return True
+        return False

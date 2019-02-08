@@ -45,6 +45,8 @@ class InterfaceMehrotraIPM(interface_ipm.InterfaceIPM):
             residuals_norm = cls._compute_norm_of_residuals(residuals)
 
             if cls._check_exit_conditions(residuals_norm, tol, cls.iter_num, max_iter):
+                cls.iter_num += 1
+                cls._log_iterations(residuals_norm, step_length)
                 break
 
             jacobian = cls._build_jacobian(cost_function, constraints, variables)
