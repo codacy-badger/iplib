@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from scipy.optimize import linprog
-from ipms.LP.merothra_ipm import MehrotraIPM
+from ipsolver.LP.mehrotra_ipm import MehrotraIPM
 
 
 class TestMehrotra(unittest.TestCase):

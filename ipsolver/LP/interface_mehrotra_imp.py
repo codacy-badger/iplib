@@ -1,6 +1,6 @@
-from ipms import interface_ipm
+from ipsolver import interface_ipm
 from abc import abstractmethod
-from ipms.logger import get_stdout_handler
+from utils.logger import get_stdout_handler
 import numpy as np
 
 
