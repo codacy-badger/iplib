@@ -1,8 +1,8 @@
 import numpy as np
 from numpy import zeros, ones, eye, diag
 
-from ipms.interface_ipm import Array, Vector, List
-from ipms.LP import interface_mehrotra_imp
+from ipsolver.interface_ipm import Array, Vector, List
+from ipsolver.LP import interface_mehrotra_imp
 
 
 class MehrotraIPM(interface_mehrotra_imp.InterfaceMehrotraIPM):

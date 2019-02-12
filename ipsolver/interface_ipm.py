@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from ipms.logger import get_logger
+from utils.logger import get_logger
 import numpy as np
 from typing import List
 

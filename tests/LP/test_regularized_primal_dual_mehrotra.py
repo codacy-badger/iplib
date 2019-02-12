@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from scipy.optimize import linprog
-from ipms.LP.regularized_primal_dual_mehrotra_ipm import RegularizedPrimalDualMehrotraIPM
+from ipsolver.LP.regularized_primal_dual_mehrotra_ipm import RegularizedPrimalDualMehrotraIPM
 
 
 class TestRegularizedPrimalDualMehrotra(unittest.TestCase):

@@ -2,12 +2,11 @@ from typing import List
 
 import numpy as np
 from numpy import zeros, ones, eye, diag
-from ipms.logger import get_stdout_handler
-from ipms.interface_ipm import Array, Vector, Matrix
-from ipms.LP import merothra_ipm
+from ipsolver.interface_ipm import Array, Vector, Matrix
+from ipsolver.LP import mehrotra_ipm
 
 
-class RegularizedPrimalDualMehrotraIPM(merothra_ipm.MehrotraIPM):
+class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
     RO = 0.0001
     DELTA = 0.0001
     x_prev = None
@@ -79,8 +78,8 @@ class RegularizedPrimalDualMehrotraIPM(merothra_ipm.MehrotraIPM):
         trb = A @ x - b
         ryk = cls.DELTA * (r + cls.y_prev) - cls.DELTA * y
         rxk = cls.RO * s + cls.RO * (x - cls.x_prev)
-        #cls.x_prev = x
-        #cls.y_prev = y
+        cls.x_prev = x
+        cls.y_prev = y
         return rc, rb, ryk, rxk, trc, trb
 
     @classmethod
