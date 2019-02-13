@@ -1,10 +1,10 @@
-from ipsolver import interface_ipm
+from ipsolver import base_ipm
 from abc import abstractmethod
 from utils.logger import get_stdout_handler
 import numpy as np
 
 
-class InterfaceMehrotraIPM(interface_ipm.InterfaceIPM):
+class BaseMehrotraIPM(base_ipm.BaseIPM):
     """ Interface for Mehrotra interior point method for linear programming. """
 
     @classmethod

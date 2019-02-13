@@ -1,11 +1,11 @@
 import numpy as np
 from numpy import zeros, ones, eye, diag
 
-from ipsolver.interface_ipm import Array, Vector, List
+from ipsolver.base_ipm import Array, Vector, List
 from ipsolver.LP import interface_mehrotra_imp
 
 
-class MehrotraIPM(interface_mehrotra_imp.InterfaceMehrotraIPM):
+class MehrotraIPM(interface_mehrotra_imp.BaseMehrotraIPM):
     """ Mehrotra implementation of IP method. """
 
     @classmethod
@@ -117,7 +117,7 @@ class MehrotraIPM(interface_mehrotra_imp.InterfaceMehrotraIPM):
 
     @classmethod
     def _get_step_length(cls, d, var):
-        alpha = MehrotraIPM.UNIT_STEP_LENGTH
+        alpha = MehrotraIPM._UNIT_STEP_LENGTH
         ax_index = np.where(d < 0)
         if ax_index[0].size != 0:
             xi = var[ax_index]

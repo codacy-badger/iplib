@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 from numpy import zeros, ones, eye, diag
-from ipsolver.interface_ipm import Array, Vector, Matrix
+from ipsolver.base_ipm import Array, Vector, Matrix
 from ipsolver.LP import mehrotra_ipm
 
 
