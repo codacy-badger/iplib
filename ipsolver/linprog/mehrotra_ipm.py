@@ -14,8 +14,7 @@ class MehrotraIPM(base_mehrotra_imp.BaseMehrotraIPM):
     def _compute_function_value(self, cost_function, point):
         return (point @ cost_function[0])[0]
 
-    @staticmethod
-    def _variables_initialization(constraints: List[Array]) -> List[Vector]:
+    def _variables_initialization(self, constraints: List[Array]) -> List[Vector]:
         [m, n] = constraints[0].shape
 
         # start point of primal-dual variables
@@ -94,8 +93,7 @@ class MehrotraIPM(base_mehrotra_imp.BaseMehrotraIPM):
             self._logger.info("{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(*args))
             # k, mu, nrb, nrc, alpha_p, alpha_d
 
-    @staticmethod
-    def _build_jacobian(cost_function, constraints, variables):
+    def _build_jacobian(self, cost_function, constraints, variables):
         A = constraints[0]
         [x, s, _] = variables
         [m, n] = A.shape
@@ -105,8 +103,7 @@ class MehrotraIPM(base_mehrotra_imp.BaseMehrotraIPM):
             np.c_[diag(s.T[0]), zeros((n, m)), diag(x.T[0])]
         ]
 
-    @staticmethod
-    def _compute_residuals(cost_function, constraints, variables):
+    def _compute_residuals(self, cost_function, constraints, variables):
         c = cost_function[0]
         [A, b] = constraints
         [x, s, y] = variables

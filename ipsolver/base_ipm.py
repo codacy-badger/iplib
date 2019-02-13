@@ -36,9 +36,9 @@ class BaseIPM(object, metaclass=ABCMeta):
             return True
         return False
 
-    @staticmethod
     @abstractmethod
-    def _compute_residuals(cost_function: List[Array],
+    def _compute_residuals(self,
+                           cost_function: List[Array],
                            constraints: List[Array],
                            variables: List[Vector]) -> List[Vector]:
         """ Computes residuals in the right hand side of Newton system.
@@ -54,8 +54,8 @@ class BaseIPM(object, metaclass=ABCMeta):
             list of Vectors which are residuals evaluated and the point from 'variables'.
         """
 
-    @staticmethod
-    def _compute_norm_of_residuals(residuals: List[Vector],
+    def _compute_norm_of_residuals(self,
+                                   residuals: List[Vector],
                                    order=np.inf) -> Vector:
         """ Computes norms of residuals.
 
@@ -70,9 +70,8 @@ class BaseIPM(object, metaclass=ABCMeta):
         """
         return np.array([np.linalg.norm(residual, ord=order) for residual in residuals])
 
-    @staticmethod
     @abstractmethod
-    def _variables_initialization(constraints: List[Array]) -> List[Vector]:
+    def _variables_initialization(self, constraints: List[Array]) -> List[Vector]:
         """ Initializes variables which are the point in N-dim space.
 
         Args:
@@ -91,9 +90,9 @@ class BaseIPM(object, metaclass=ABCMeta):
     def _log_iterations(self, *args, **kwargs):
         """" Logs iterations in optimization process. """
 
-    @staticmethod
     @abstractmethod
-    def _build_jacobian(cost_function: List[Array],
+    def _build_jacobian(self,
+                        cost_function: List[Array],
                         constraints: List[Array],
                         variables: List[Vector]) -> Matrix:
         """ Builds Jacobian for Newton step.
