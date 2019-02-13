@@ -17,13 +17,15 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-5
 
-            try:
-                [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([c], [A, b], tol, logs=False)
-                res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-                if (x @ c)[0] <= (res.x @ c)[0] and np.linalg.norm(A@x-b, np.inf) < np.linalg.norm(A@res.x-b, np.inf):
+            ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_LP, tol=tol)
+            if ip_res.success:
+                lp_res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+                if (ip_res.f <= lp_res.fun and
+                        np.linalg.norm(A@ip_res.x-b, np.inf) < np.linalg.norm(A@lp_res.x-b, np.inf)):
                     cntr_ok += 1
-            except ValueError:
+            else:
                 cntr_fail += 1
+
         print("{} - Percentage when IP is better then LINPROG: {:.2f}, Percentage of fails: {:.2f}%".format(
             self.test_random_problems_without_slack_variables_and_down_rectangular_matrix.__name__,
             cntr_ok / cnt_experiments * 100, cntr_fail / cnt_experiments * 100))
@@ -40,14 +42,16 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-4
 
-            try:
-                [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([c], [A, b], tol, logs=False)
-                res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-                primal_resid += np.linalg.norm(A@x-b) / x.shape[0]
-                if (x @ c)[0] <= (res.x @ c)[0] and np.linalg.norm(A@x-b) < np.linalg.norm(A@res.x-b):
+            ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_LP, tol=tol)
+            if ip_res.success:
+                lp_res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+                primal_resid += np.linalg.norm(A@ip_res.x-b) / ip_res.x.shape[0]
+                if (ip_res.f <= lp_res.fun and
+                        np.linalg.norm(A @ ip_res.x - b, np.inf) < np.linalg.norm(A @ lp_res.x - b, np.inf)):
                     cntr_ok += 1
-            except ValueError:
+            else:
                 cntr_fail += 1
+
         print("{} - Percentage when IP is better then LINPROG: {:.2f}, Percentage of fails: {:.2f}%, Mean primal residual: {:.4f}".format(
             self.test_random_problems_without_slack_variables_and_right_rectangular_matrix.__name__,
             cntr_ok / cnt_experiments * 100, cntr_fail / cnt_experiments * 100, primal_resid / cnt_experiments))
@@ -67,12 +71,13 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            try:
-                [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([c], [A, b], tol, logs=False)
-                res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-                if (x @ c)[0] <= (res.x @ c)[0] and np.linalg.norm(A@x-b, np.inf) < np.linalg.norm(A@res.x-b, np.inf):
+            ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_LP, tol=tol)
+            if ip_res.success:
+                lp_res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+                if (ip_res.f <= lp_res.fun and
+                        np.linalg.norm(A @ ip_res.x - b, np.inf) < np.linalg.norm(A @ lp_res.x - b, np.inf)):
                     cntr_ok += 1
-            except ValueError:
+            else:
                 cntr_fail += 1
         print("{} - Percentage when IP is better then LINPROG: {:.2f}, Percentage of fails: {:.2f}%".format(
             self.test_random_rank_deficient_problems.__name__,
