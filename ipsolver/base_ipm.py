@@ -6,26 +6,25 @@ from utils.typing import Matrix, Vector, Array
 from utils.logger import get_logger
 
 
-class BaseIPM(metaclass=ABCMeta):
+class BaseIPM(object, metaclass=ABCMeta):
     """ Base class for interior point methods. """
 
     _UNIT_STEP_LENGTH = 1.0
 
     def __init__(self):
+        self._iter_num = 0
         self._logger = get_logger()
 
     def _check_exit_conditions(self,
                                residuals_norm: Vector,
                                tol: float,
-                               iter_num: int,
-                               max_iter: int) -> bool:
+                               max_iter: int = np.inf) -> bool:
         """ Checks condition for exit from the loop.
 
 
         Args:
             residuals_norm: norms of the residuals from the right hand side of Newton system.
             tol: tolerance of the algorithm.
-            iter_num: current iteration number.
             max_iter: maximum number of iterations.
 
 
@@ -33,7 +32,7 @@ class BaseIPM(metaclass=ABCMeta):
             True if condition satisfied, else False.
         """
         # TODO: fix issue with cls.mu
-        if np.max(residuals_norm) < tol and self.mu < tol or iter_num > max_iter:
+        if np.max(residuals_norm) < tol and self.mu < tol or self._iter_num > max_iter:
             return True
         return False
 
@@ -131,8 +130,17 @@ class BaseIPM(metaclass=ABCMeta):
         if np.linalg.matrix_rank(jac) == jac.shape[0]:
             return np.linalg.solve(jac, rhs)
         else:
-            raise ValueError("Jacobian of Newton system is rank-deficient.")
+            raise JacobianIsRankDeficient
 
     @abstractmethod
     def solve(self, *args, **kwargs):
         """ Solves a optimization problem. """
+
+
+class JacobianIsRankDeficient(Exception):
+    """ Custom exception for rank deficient problem of Jacobian. """
+
+    def __init__(self, message=None):
+        if not message:
+            message = "Jacobian of Newton system is rank-deficient."
+        super().__init__(message)
