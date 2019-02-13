@@ -1,122 +1,124 @@
-from abc import ABCMeta, abstractmethod
-from utils.logger import get_logger
 import numpy as np
+
+from abc import ABCMeta, abstractmethod
 from typing import List
-
-Matrix = np.array
-Vector = np.array
-Array = np.array
+from utils.typing import Matrix, Vector, Array
+from utils.logger import get_logger
 
 
-class InterfaceIPM(metaclass=ABCMeta):
-    """ Interface for Interior point methods. """
+class BaseIPM(metaclass=ABCMeta):
+    """ Base class for interior point methods. """
 
-    UNIT_STEP_LENGTH = 1.0
-    logger = get_logger()
+    _UNIT_STEP_LENGTH = 1.0
 
-    @classmethod
-    def _check_exit_conditions(cls,
+    def __init__(self):
+        self._logger = get_logger()
+
+    def _check_exit_conditions(self,
                                residuals_norm: Vector,
                                tol: float,
                                iter_num: int,
                                max_iter: int) -> bool:
         """ Checks condition for exit from the loop.
 
+
         Args:
             residuals_norm: norms of the residuals from the right hand side of Newton system.
             tol: tolerance of the algorithm.
             iter_num: current iteration number.
             max_iter: maximum number of iterations.
+
+
         Returns:
             True if condition satisfied, else False.
         """
-        if np.max(residuals_norm) < tol and cls.mu < tol or iter_num > max_iter:
+        # TODO: fix issue with cls.mu
+        if np.max(residuals_norm) < tol and self.mu < tol or iter_num > max_iter:
             return True
         return False
 
-    @classmethod
     @abstractmethod
-    def _compute_residuals(cls,
+    def _compute_residuals(self,
                            cost_function: List[Array],
                            constraints: List[Array],
                            variables: List[Vector]) -> List[Vector]:
         """ Computes residuals in the right hand side of Newton system.
+
 
         Args:
             cost_function: list of Vectors and Matrices from definition of the cost function.
             constraints: list of Vectors Matrices which relates to the optimization problem constraints.
             variables: list of variables (primal and dual) which take a part in calculation.
 
+
         Returns:
             list of Vectors which are residuals evaluated and the point from 'variables'.
         """
 
-    @classmethod
-    def _compute_norm_of_residuals(cls,
-                                   residuals: List[Vector],
+    @staticmethod
+    def _compute_norm_of_residuals(residuals: List[Vector],
                                    order=np.inf) -> Vector:
         """ Computes norms of residuals.
+
 
         Args:
             residuals: list of Vectors which are residuals.
             order: the type of norm (look at the numpy.linalg.norm documentation).
+
 
         Returns:
             Vector of norm of residuals.
         """
         return np.array([np.linalg.norm(residual, ord=order) for residual in residuals])
 
-    @classmethod
     @abstractmethod
-    def _variables_initialization(cls, constraints: List[Array]) -> List[Vector]:
+    def _variables_initialization(self, constraints: List[Array]) -> List[Vector]:
         """ Initializes variables which are the point in N-dim space.
 
         Args:
-            constraints: list of Matrices and Vectors which are the constraints in optimization problem.
+            constraints: list of Matrices and Vectors which are the constraints for optimization problem.
         """
 
-    @classmethod
-    def _parameters_initialization(cls):
+    def _parameters_initialization(self):
         """ Initializes set of parameters which is required for optimization. """
-        cls.mu = 1
+        self.mu = 1.0
 
-    @classmethod
     @abstractmethod
-    def _constants_initialization(cls, *args):
-        """ Initialize constants which are required for optimization loop. """
+    def _constants_initialization(self, *args):
+        """ Initializes constants which are required for optimization loop. """
 
-    @classmethod
     @abstractmethod
-    def _log_iterations(cls, *args, **kwargs):
-        """" Logging of optimization process. """
+    def _log_iterations(self, *args, **kwargs):
+        """" Logs iterations in optimization process. """
 
-    @classmethod
     @abstractmethod
-    def _build_jacobian(cls,
+    def _build_jacobian(self,
                         cost_function: List[Array],
                         constraints: List[Array],
                         variables: List[Vector]) -> Matrix:
         """ Builds Jacobian for Newton step.
+
 
         Args:
             cost_function: list of Vectors and Matrices from definition of the cost function.
             constraints: list of Vectors Matrices which relates to the optimization problem constraints.
             variables: list of variables (primal and dual) which take a part in calculation.
 
+
         Returns:
             Jacobian matrix.
         """
 
-    @classmethod
     @abstractmethod
-    def _get_step_length(cls, *args, **kwargs):
-        """ Returns optimal step length.
+    def _get_step_length(self, *args, **kwargs):
+        """ Returns optimal step length for Newton step.
 
         Optimality with respect to the fact that the next step should be in the neighbourhood of the
-        central path"""
+        central path
+        """
 
-    @classmethod
-    def _newton_step(cls, jac: Matrix, rhs: Vector) -> Vector:
+    @staticmethod
+    def _newton_step(jac: Matrix, rhs: Vector) -> Vector:
         """ Solve a Newton system and returns the steepest decent direction.
 
         Args:
@@ -131,8 +133,6 @@ class InterfaceIPM(metaclass=ABCMeta):
         else:
             raise ValueError("Jacobian of Newton system is rank-deficient.")
 
-    @classmethod
     @abstractmethod
-    def solve(cls, *args, **kwargs):
+    def solve(self, *args, **kwargs):
         """ Solves a optimization problem. """
-        pass
