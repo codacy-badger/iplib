@@ -7,15 +7,27 @@ from ipsolver.linprog import mehrotra_ipm
 
 
 class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
-    RO = 0.0001
-    DELTA = 0.0001
-    x_prev = None
-    y_prev = None
-
     """ Mehrotra implementation of IP method. """
 
-    @classmethod
-    def _variables_initialization(cls, constraints: List[Array]) -> List[Vector]:
+    _RO = 0.0001
+    _DELTA = 0.0001
+
+    def __init__(self, ro=None, delta=None):
+        super().__init__()
+        self._x_prev = None
+        self._y_prev = None
+
+        if not ro:
+            self._ro = RegularizedPrimalDualMehrotraIPM._RO
+        else:
+            self._ro = ro
+
+        if not delta:
+            self._delta = RegularizedPrimalDualMehrotraIPM._DELTA
+        else:
+            self._delta = delta
+
+    def _variables_initialization(self, constraints: List[Array]) -> List[Vector]:
         A = constraints[0]
         [m, n] = A.shape
 
@@ -27,63 +39,58 @@ class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
         s = ones((n, 1))
         return [x, z, y, r, s]
 
-    @classmethod
-    def _build_jacobian(cls, cost_function: List[Array], constraints: List[Array], variables: List[Vector]) -> Matrix:
+    def _build_jacobian(self, cost_function: List[Array], constraints: List[Array], variables: List[Vector]) -> Matrix:
         A = constraints[0]
         [m, n] = A.shape
         [x, z, _, _, _] = variables
         return np.r_[
-            np.c_[zeros((n, n)), - A.T, - eye(n), zeros((n, m)), -cls.RO * eye(n)],
-            np.c_[A, zeros((m, m)), zeros((m, n)), cls.DELTA * eye(m), zeros((m, n))],
-            np.c_[zeros((m, n)), - cls.DELTA * eye(m), zeros((m, n)), cls.DELTA * eye(m), zeros((m, n))],
-            np.c_[cls.RO * eye(n), zeros((n, m)), zeros((n, n)), zeros((n, m)), cls.RO * eye(n)],
+            np.c_[zeros((n, n)), - A.T, - eye(n), zeros((n, m)), -self._ro * eye(n)],
+            np.c_[A, zeros((m, m)), zeros((m, n)), self._delta * eye(m), zeros((m, n))],
+            np.c_[zeros((m, n)), - self._delta * eye(m), zeros((m, n)), self._delta * eye(m), zeros((m, n))],
+            np.c_[self._delta * eye(n), zeros((n, m)), zeros((n, n)), zeros((n, m)), self._ro * eye(n)],
             np.c_[diag(z.T[0]), zeros((n, m)), diag(x.T[0]), zeros((n, m)), zeros((n, n))]
         ]
 
-    @classmethod
-    def _log_iterations(cls, *args, **kwargs):
+    def _log_iterations(self, *args, **kwargs):
         if len(args) == 0:
-            cls.logger.info(
+            self._logger.info(
                 '  k | mu      | rc      | rb      | ryk     | rxk     | trc     | trb     | alpha_p | alpha_d')
-            cls.logger.info(
+            self._logger.info(
                 ' --------------------------------------------------------------------------------------------')
         else:
-            args = [cls.iter_num, cls.mu[0][0]] + list(np.concatenate(args))
-            cls.logger.info(
+            args = [self._iter_num, self.mu[0][0]] + list(np.concatenate(args))
+            self._logger.info(
                 "{:3d} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f} | {:7.4f}".format(
                     *args))
 
-    @classmethod
-    def _set_prevs(cls, x, y):
-        if cls.x_prev is None:
-            cls.x_prev = x
-        elif x.shape != cls.x_prev.shape:
-            cls.x_prev = x
+    def _set_prevs(self, x, y):
+        if self._x_prev is None:
+            self._x_prev = x
+        elif x.shape != self._x_prev.shape:
+            self._x_prev = x
 
-        if cls.y_prev is None:
-            cls.y_prev = y
-        elif y.shape != cls.y_prev.shape:
-            cls.y_prev = y
+        if self._y_prev is None:
+            self._y_prev = y
+        elif y.shape != self._y_prev.shape:
+            self._y_prev = y
 
-    @classmethod
-    def _compute_residuals(cls, cost_function, constraints, variables):
+    def _compute_residuals(self, cost_function, constraints, variables):
         c = cost_function[0]
         [A, b] = constraints
         [x, z, y, r, s] = variables
-        cls._set_prevs(x, y)
+        self._set_prevs(x, y)
 
-        rc = c - A.T @ y - z - cls.RO * s
-        rb = A @ x + cls.DELTA * r - b
+        rc = c - A.T @ y - z - self._ro * s
+        rb = A @ x + self._delta * r - b
         trc = c - A.T @ y - z
         trb = A @ x - b
-        ryk = cls.DELTA * (r + cls.y_prev) - cls.DELTA * y
-        rxk = cls.RO * s + cls.RO * (x - cls.x_prev)
-        cls.x_prev = x
-        cls.y_prev = y
+        ryk = self._delta * (r + self._y_prev) - self._delta * y
+        rxk = self._ro * s + self._ro * (x - self._x_prev)
+        self._x_prev = x
+        self._y_prev = y
         return rc, rb, ryk, rxk, trc, trb
 
-    @classmethod
-    def _predictor_step(cls, constraints, variables, residuals, jacobian):
+    def _predictor_step(self, constraints, variables, residuals, jacobian):
         # input parsing
         [rc, rb, ryk, rxk, _, _] = residuals
         [x, z, _, _, _] = variables
@@ -91,11 +98,11 @@ class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
         # step performing
         rhs = - np.concatenate([rc, rb, ryk, rxk, x * z])
 
-        d = cls._newton_step(jacobian, rhs)
-        d_x = d[0:cls.n]
-        d_z = d[cls.n + cls.m:2 * cls.n + cls.m]
-        alpha_p = cls._get_step_length(d_x, x)
-        alpha_d = cls._get_step_length(d_z, z)
+        d = self._newton_step(jacobian, rhs)
+        d_x = d[0:self._N]
+        d_z = d[self._N + self._M:2 * self._N + self._M]
+        alpha_p = self._get_step_length(d_x, x)
+        alpha_d = self._get_step_length(d_z, z)
 
         # metadata creating
         metadata = {
@@ -104,8 +111,7 @@ class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
         }
         return metadata
 
-    @classmethod
-    def _corrector_step(cls, predictor_metadata, constraints, variables, residuals, jacobian):
+    def _corrector_step(self, predictor_metadata, constraints, variables, residuals, jacobian):
         # input parsing
         [alpha_p, alpha_d] = predictor_metadata['step']
         [d_x, d_z] = predictor_metadata['d']
@@ -113,31 +119,30 @@ class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
         [rc, rb, ryk, rxk, _, _] = residuals
 
         # step performing
-        cls.mu = x.T @ z / cls.n
-        mu_alpha = ((x + alpha_p * d_x).T @ (z + alpha_d * d_z)) / cls.n
-        sigma = np.power((mu_alpha / cls.mu), 3)
+        self.mu = x.T @ z / self._N
+        mu_alpha = ((x + alpha_p * d_x).T @ (z + alpha_d * d_z)) / self._N
+        sigma = np.power((mu_alpha / self.mu), 3)
 
-        rhs = -np.concatenate([rc, rb, ryk, rxk, x * z + d_x * d_z - sigma * cls.mu])
+        rhs = -np.concatenate([rc, rb, ryk, rxk, x * z + d_x * d_z - sigma * self.mu])
 
-        d = cls._newton_step(jacobian, rhs)
-        d_x = d[0:cls.n]
-        d_z = d[cls.n + cls.m:2 * cls.n + cls.m]
-        alpha_p = cls._get_step_length(d_x, x)
-        alpha_d = cls._get_step_length(d_z, z)
+        d = self._newton_step(jacobian, rhs)
+        d_x = d[0:self._N]
+        d_z = d[self._N + self._M:2 * self._N + self._M]
+        alpha_p = self._get_step_length(d_x, x)
+        alpha_d = self._get_step_length(d_z, z)
 
         return d, np.array([alpha_p, alpha_d])
 
-    @classmethod
-    def _update_variables(cls, variables, direction, step_length):
+    def _update_variables(self, variables, direction, step_length):
         [x, z, y, r, s] = variables
         d = direction
         [alpha_p, alpha_d] = step_length
 
-        dx = d[0:cls.n]
-        dy = d[cls.n:cls.n + cls.m]
-        dz = d[cls.n + cls.m:2 * cls.n + cls.m]
-        dr = d[2 * cls.n + cls.m:2 * cls.n + 2 * cls.m]
-        ds = d[2 * cls.n + 2 * cls.m:]
+        dx = d[0:self._N]
+        dy = d[self._N:self._N + self._M]
+        dz = d[self._N + self._M:2 * self._N + self._M]
+        dr = d[2 * self._N + self._M:2 * self._N + 2 * self._M]
+        ds = d[2 * self._N + 2 * self._M:]
 
         # new iterate
         x = x + alpha_p * dx
@@ -147,8 +152,7 @@ class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
         s = s + alpha_d * ds
         return [x, z, y, r, s]
 
-    @classmethod
-    def _check_exit_conditions(cls, residuals_norm: Vector, tol: float, iter_num: int, max_iter: int) -> bool:
-        if np.max(residuals_norm[:-2]) < tol and cls.mu < tol or iter_num > max_iter:
+    def _check_exit_conditions(self, residuals_norm: Vector, tol=1e-7, max_iter=np.inf) -> bool:
+        if np.max(residuals_norm[:-2]) < tol and self.mu < tol or self._iter_num > max_iter:
             return True
         return False
