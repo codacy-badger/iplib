@@ -1,7 +1,7 @@
 import unittest
+import ipsolver
 import numpy as np
 from scipy.optimize import linprog
-from ipsolver.LP.mehrotra_ipm import MehrotraIPM
 
 
 class TestMehrotra(unittest.TestCase):
@@ -15,9 +15,9 @@ class TestMehrotra(unittest.TestCase):
         c = - np.array([[3], [13], [13], [0], [0], [0]], dtype=np.float64)
         tol = 1e-7
 
-        [x, s, y] = MehrotraIPM.solve([c], [A, b], tol)
-        res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-        self.assertTrue(np.allclose(x, res.x))
+        ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.MEHROTRA_METHOD_LP, tol=tol)
+        lp_res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+        self.assertTrue(np.allclose(ip_res.x, lp_res.x))
 
     def test_rank_deficient(self):
         A = np.array([[1, -1, 0, 5, 3],
@@ -26,11 +26,12 @@ class TestMehrotra(unittest.TestCase):
                       [0, 2, -3, 1, 2]], dtype=np.float64)
         I = np.eye(A.shape[0])
         A = np.c_[A, I]
-        b = np.array([[7], [15], [9], [8]], dtype=np.float64)
-        c = - np.array([[3], [13], [13], [-5], [9], [0], [0], [0]], dtype=np.float64)
+        b = np.array([[7], [15], [9], [9]], dtype=np.float64)
+        c = - np.array([[3], [13], [13], [-5], [9], [0], [0], [0], [0]], dtype=np.float64)
         tol = 1e-7
 
-        self.assertRaises(ValueError, MehrotraIPM.solve, [c], [A, b], tol)
+        ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.MEHROTRA_METHOD_LP, tol=tol)
+        self.assertFalse(ip_res.success)
 
     def test_10_random_problems_with_slack_variables(self):
         for _ in range(10):
@@ -41,9 +42,9 @@ class TestMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            [x, y, s] = MehrotraIPM.solve([c], [A, b], tol)
-            res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
-            self.assertTrue(np.allclose(x, res.x))
+            ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.MEHROTRA_METHOD_LP, tol=tol)
+            lp_res = linprog(c, A_eq=A, b_eq=b, bounds=((0, None),) * c.shape[0])
+            self.assertTrue(np.allclose(ip_res.x, lp_res.x))
 
     def test_20_random_rank_deficient_problems(self):
         for _ in range(20):
@@ -57,4 +58,5 @@ class TestMehrotra(unittest.TestCase):
             c = - np.random.rand(A.shape[1], 1)
             tol = 1e-7
 
-            self.assertRaises(ValueError, MehrotraIPM.solve, [c], [A, b], tol)
+            ip_res = ipsolver.optimize([c], [A, b], method=ipsolver.MEHROTRA_METHOD_LP, tol=tol)
+            self.assertFalse(ip_res.success)

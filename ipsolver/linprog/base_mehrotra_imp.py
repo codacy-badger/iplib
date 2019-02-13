@@ -2,6 +2,10 @@ from ipsolver import base_ipm
 from abc import abstractmethod
 from utils.logger import get_stdout_handler
 import numpy as np
+from collections import namedtuple
+
+
+_Result = namedtuple('Result', ['success', 'x', 'dual', 'f'])
 
 
 class BaseMehrotraIPM(base_ipm.BaseIPM):
@@ -21,6 +25,10 @@ class BaseMehrotraIPM(base_ipm.BaseIPM):
     @abstractmethod
     def _update_variables(self, variables, direction, step_length):
         """ Updates point position with respect to steepest direction and the optimal step length. """
+
+    @abstractmethod
+    def _compute_function_value(self, cost_function, point):
+        """ Computes the function value in point. """
 
     def solve(self, cost_function, constraints, tol=1e-8,  max_iter=np.inf, logs=False):
         """ Solves a linear programming optimization problem. """
@@ -55,7 +63,11 @@ class BaseMehrotraIPM(base_ipm.BaseIPM):
 
             self._iter_num += 1
             self._log_iterations(residuals_norm, step_length)
-        return {"success": success, "vars": [np.ravel(var) for var in variables]}
+
+        variables = [np.ravel(var) for var in variables]
+        f = self._compute_function_value(cost_function, variables[0])
+        return _Result(success=success, x=variables[0], dual=variables[1:], f=f)
+
 
 
 
