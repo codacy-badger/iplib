@@ -1,7 +1,6 @@
 import unittest
+import ipsolver
 import numpy as np
-from scipy.optimize import linprog
-from ipsolver.QP.regularized_primal_dual_mehrotra_ipm import RegularizedPrimalDualMehrotraIPM
 from scipy import optimize, sparse
 
 
@@ -44,9 +43,9 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
                       [10, 0, 0, 0, 0, 1]], dtype=np.float64)
         tol = 1e-7
 
-        res = solveqp(Q, c, A, b)
-        [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([Q, c], [A, b], tol, logs=False)
-        self.assertTrue(np.allclose(x, res.x, rtol=1.e-3, atol=1.e-3))
+        qp_res = solveqp(Q, c, A, b)
+        ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+        self.assertTrue(np.allclose(ip_res.x, qp_res.x, rtol=1.e-3, atol=1.e-3))
 
     def test_rank_deficient(self):
         A = np.array([[1, -1, 0, 5, 3],
@@ -55,17 +54,21 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
                       [0, 2, -3, 1, 2]], dtype=np.float64)
         I = np.eye(A.shape[0])
         A = np.c_[A, I]
-        b = np.array([[7], [15], [9], [8]], dtype=np.float64)
-        c = - np.array([[3], [13], [13], [-5], [9], [0], [0], [0]], dtype=np.float64)
-        Q = np.array([[1, 0, 0, 0, 0, 10],
-                      [0, 1, 0, 0, 1, 0],
-                      [0, 0, 1, 0, 0, 0],
-                      [0, 0, 0, 1, 0, 0],
-                      [0, 1, 0, 0, 1, 0],
-                      [10, 0, 0, 0, 0, 1]], dtype=np.float64)
+        b = np.array([[7], [15], [9], [9]], dtype=np.float64)
+        c = - np.array([[3], [13], [13], [-5], [9], [0], [0], [0], [0]], dtype=np.float64)
+        Q = np.array([[1, 0, 0, 0, 10, 0, 0, 0, 0],
+                      [0, 1, 0, 7, 0, 0, 0, 0, 0],
+                      [0, 0, 1, 0, 0, 0, 0, 0, 0],
+                      [0, 7, 0, 1, 0, 0, 0, 0, 0],
+                      [10, 0, 0, 0, 1, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=np.float64)
         tol = 1e-7
 
-        self.assertRaises(ValueError, RegularizedPrimalDualMehrotraIPM.solve, [Q, c], [A, b], tol)
+        ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+        self.assertTrue(ip_res.success)
 
     def test_random_problems_with_slack_variables(self):
         cnt_experiments = 20
@@ -83,6 +86,6 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             Q = np.pad(Q, ((0, pd), (0, pd)), mode='constant', constant_values=(0, 0))
             tol = 1e-7
 
-            res = solveqp(Q, c, A, b)
-            [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([Q, c], [A, b], tol, logs=False)
-            self.assertTrue(np.allclose(x, res.x, rtol=1.e-3, atol=1.e-3))
+            qp_res = solveqp(Q, c, A, b)
+            ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+            self.assertTrue(np.allclose(ip_res.x, qp_res.x, rtol=1.e-3, atol=1.e-3))
