@@ -8,7 +8,7 @@ from collections import namedtuple
 _Result = namedtuple('Result', ['success', 'x', 'dual', 'f'])
 
 
-class BaseMehrotraIPM(base_ipm.BaseIPM):
+class BaseIPM(base_ipm.BaseIPM):
     """ Base class for Mehrotra interior point method in linear programming. """
 
     def __init__(self):
@@ -67,13 +67,3 @@ class BaseMehrotraIPM(base_ipm.BaseIPM):
         variables = [np.ravel(var) for var in variables]
         f = self._compute_function_value(cost_function, variables[0])
         return _Result(success=success, x=variables[0], dual=variables[1:], f=f)
-
-
-
-
-
-
-
-
-
-

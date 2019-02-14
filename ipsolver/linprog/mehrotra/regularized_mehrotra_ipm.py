@@ -3,12 +3,13 @@ from typing import List
 import numpy as np
 from numpy import zeros, ones, eye, diag
 from ipsolver.base_ipm import Array, Vector, Matrix
-from ipsolver.linprog import mehrotra_ipm
+from ipsolver.linprog.mehrotra import mehrotra_ipm
 
 
-class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
-    """ Mehrotra implementation of IP method. """
+class RegularizedMehrotraIPM(mehrotra_ipm.IPM):
+    """ Implementation of primal-dual regularized Mehrotra IP method. """
 
+    # Default regularization parameters.
     _RO = 0.0001
     _DELTA = 0.0001
 
@@ -18,12 +19,12 @@ class RegularizedPrimalDualMehrotraIPM(mehrotra_ipm.MehrotraIPM):
         self._y_prev = None
 
         if not ro:
-            self._ro = RegularizedPrimalDualMehrotraIPM._RO
+            self._ro = RegularizedMehrotraIPM._RO
         else:
             self._ro = ro
 
         if not delta:
-            self._delta = RegularizedPrimalDualMehrotraIPM._DELTA
+            self._delta = RegularizedMehrotraIPM._DELTA
         else:
             self._delta = delta
 
