@@ -44,7 +44,7 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
         tol = 1e-7
 
         qp_res = solveqp(Q, c, A, b)
-        ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+        ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol, logs=False)
         self.assertTrue(np.allclose(ip_res.x, qp_res.x, rtol=1.e-3, atol=1.e-3))
 
     def test_rank_deficient(self):

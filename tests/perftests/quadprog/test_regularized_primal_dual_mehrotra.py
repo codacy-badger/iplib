@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
-from scipy.optimize import linprog
-from ipsolver.QP.regularized_primal_dual_mehrotra_ipm import RegularizedPrimalDualMehrotraIPM
+import ipsolver
 from scipy import optimize, sparse
 
 
@@ -16,8 +15,8 @@ def solveqp(Q, c, A, b):
         return sign * (np.dot(Q, x) + c)
 
     cons = {'type': 'eq',
-             'fun': lambda x: b - np.dot(A, x),
-             'jac': lambda x: -A}
+            'fun': lambda x: b - np.dot(A, x),
+            'jac': lambda x: -A}
 
     x0 = np.random.randn(*c.shape)
     opt = {'disp': False}
@@ -41,13 +40,10 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             Q = Q @ Q.T
             tol = 1e-5
 
-            try:
-                # res = solveqp(Q, c, A, b)
-                [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([Q, c], [A, b], tol, logs=False)
-
-                # if (x.T @ Q @ x + x @ c)[0] <= (res.x.T @ Q @ res.x + res.x @ c)[0] and np.linalg.norm(A@x-b, np.inf) < np.linalg.norm(A@res.x-b, np.inf):
+            ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+            if ip_res.success:
                 cntr_ok += 1
-            except ValueError:
+            else:
                 cntr_fail += 1
         print("{} - Percentage when Jacobian is not rank-deficient: {:.2f}%".format(
             self.test_random_problems_without_slack_variables_and_down_rectangular_matrix.__name__,
@@ -67,15 +63,18 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             Q = sparse.random(A.shape[1], A.shape[1], 0.9).A
             Q = Q @ Q.T
 
-            try:
-                [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([Q, c], [A, b], tol, logs=False)
-                res = solveqp(Q, c, A, b)
-                primal_resid += np.linalg.norm(A@x-b) / x.shape[0]
-                if (x.T @ Q @ x + x @ c)[0] <= (res.x.T @ Q @ res.x + res.x @ c)[0] and np.linalg.norm(A@x-b) < np.linalg.norm(A@res.x-b):
+            ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+            if ip_res.success:
+                qp_res = solveqp(Q, c, A, b)
+                qp_res.fun = (qp_res.x.T @ Q @ qp_res.x + qp_res.x @ c)[0]
+                primal_resid += np.linalg.norm(A @ ip_res.x - b) / ip_res.x.shape[0]
+                if (ip_res.f <= qp_res.fun and
+                        np.linalg.norm(A @ ip_res.x - b, np.inf) < np.linalg.norm(A @ qp_res.x - b, np.inf)):
                     cntr_ok += 1
-            except ValueError:
+            else:
                 cntr_fail += 1
-        print("{} - Percentage when IP is better then SLSQPx: {:.2f}, Percentage of fails: {:.2f}%, Mean primal residual: {:.4f}".format(
+
+        print("{} - Percentage when IP is better then SLSQP: {:.2f}, Percentage of fails: {:.2f}%, Mean primal residual: {:.4f}".format(
             self.test_random_problems_without_slack_variables_and_right_rectangular_matrix.__name__,
             cntr_ok / cnt_experiments * 100, cntr_fail / cnt_experiments * 100, primal_resid / cnt_experiments))
 
@@ -97,13 +96,10 @@ class TestRegularizedPrimalDualMehrotra(unittest.TestCase):
             Q = Q @ Q.T
             tol = 1e-7
 
-            try:
-                [x, _, _, _, _] = RegularizedPrimalDualMehrotraIPM.solve([Q, c], [A, b], tol, logs=False)
-                #res = solveqp(Q, c, A, b)
-                #if (x.T @ Q @ x + x @ c)[0] <= (res.x.T @ Q @ res.x + res.x @ c)[0] and np.linalg.norm(
-                #        A @ x - b) < np.linalg.norm(A @ res.x - b):
+            ip_res = ipsolver.optimize([Q, c], [A, b], method=ipsolver.REGULARIZED_MEHROTRA_METHOD_QP, tol=tol)
+            if ip_res.success:
                 cntr_ok += 1
-            except ValueError:
+            else:
                 cntr_fail += 1
         print("{} - Percentage when Jacobian is not rank-deficient: {:.2f}%".format(
             self.test_random_rank_deficient_problems.__name__,
