@@ -32,13 +32,13 @@ def optimize(cost_function, constraints, method=AUTO_METHOD, tol=1e-8,  max_iter
 
 def _get_solver(method_name):
     if method_name == MEHROTRA_METHOD_LP:
-        return linprog.mehrotra_ipm.MehrotraIPM()
+        return linprog.mehrotra.mehrotra_ipm.IPM()
     elif method_name == REGULARIZED_MEHROTRA_METHOD_LP:
-        return linprog.regularized_primal_dual_mehrotra_ipm.RegularizedPrimalDualMehrotraIPM()
+        return linprog.mehrotra.regularized_mehrotra_ipm.RegularizedMehrotraIPM()
     elif method_name == MEHROTRA_METHOD_QP:
         raise NotImplementedError
     elif method_name == REGULARIZED_MEHROTRA_METHOD_QP:
-        return quadprog.regularized_primal_dual_mehrotra_ipm.RegularizedPrimalDualMehrotraIPM()
+        return quadprog.regularized_mehrotra_ipm.RegularizedMehrotraIPM()
     else:
         raise ValueError(f"Method with name '{method_name}' could not be found.")
 

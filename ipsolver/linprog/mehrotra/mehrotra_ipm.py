@@ -2,10 +2,10 @@ import numpy as np
 from numpy import zeros, ones, eye, diag
 
 from ipsolver.base_ipm import Array, Vector, List
-from ipsolver.linprog import base_mehrotra_imp
+from ipsolver.linprog.mehrotra import base_imp
 
 
-class MehrotraIPM(base_mehrotra_imp.BaseMehrotraIPM):
+class IPM(base_imp.BaseIPM):
     """ Mehrotra implementation of IP method. """
 
     def __init__(self):
@@ -113,9 +113,8 @@ class MehrotraIPM(base_mehrotra_imp.BaseMehrotraIPM):
 
         return [rc, rb]
 
-    @staticmethod
-    def _get_step_length(d, var):
-        alpha = MehrotraIPM._UNIT_STEP_LENGTH
+    def _get_step_length(self, d, var):
+        alpha = IPM._UNIT_STEP_LENGTH
         ax_index = np.where(d < 0)
         if ax_index[0].size != 0:
             xi = var[ax_index]

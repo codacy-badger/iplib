@@ -1,10 +1,10 @@
-from ipsolver.linprog.regularized_primal_dual_mehrotra_ipm import RegularizedPrimalDualMehrotraIPM as LPMehrotraIPM
+from ipsolver import linprog
 from ipsolver.base_ipm import Array, Vector, Matrix, List
 from numpy import zeros, eye, diag
 import numpy as np
 
 
-class RegularizedPrimalDualMehrotraIPM(LPMehrotraIPM):
+class RegularizedMehrotraIPM(linprog.mehrotra.regularized_mehrotra_ipm.RegularizedMehrotraIPM):
 
     def __init__(self):
         super().__init__()
